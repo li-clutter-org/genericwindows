@@ -5,7 +5,7 @@ Automated Performance Testing with Powershell
 
 Load Impact can be used from any command line or scripting environment capable of doing http REST calls.
 
-Using our robust and extensible APIs you can integrate Load Impact’s world-leading performance testing platform into your automated TeamCity build and test process.
+Using our robust and extensible APIs you can integrate Load Impact’s world-leading performance testing platform into your automated build and test process.
 
 Load Impact covers your back with everything you need for Web, API and application performance testing. And test scripting is simple.
 
@@ -124,7 +124,7 @@ do {
 Write-Host "Performance test running"
 ```
 
-We kick off the performance test by gluing together the URI for the [API to start the test](http://developers.loadimpact.com/api/#post-test-configs-id-start) and then send service messages to TeamCity on the status of the test.
+We kick off the performance test by gluing together the URI for the [API to start the test](http://developers.loadimpact.com/api/#post-test-configs-id-start) and then write the status of the test to the console.
 
 In PowerShell Invoke-Webrequest will fail if the response code is not &lt; 400 which is not really what we want so we try-catch all possible response codes and then specifically check for the expected 201.
 
@@ -136,7 +136,7 @@ Then we let it take a maximum of five minutes for the test to actually kickoff. 
 
 We get that status of the test by [calling the API](http://developers.loadimpact.com/api/#get-tests-id) and parsing the json response to check for the status in the response.
 
-The last thing we do is to send a service message to TeamCity that the test is running.
+The last thing we do is to output to the console the test is running.
 
 3c The test is running
 ======================
@@ -187,7 +187,7 @@ We included an example of making a threshold from the [VU Load Time (please read
 
 We get the value by calling the same API as before but for the VU Load Time result, parse the json and get the max value by some PowerShell magic sorting and selecting.
 
-If the value exceeds 1 second we exit the build step and fail the build by sending a service message to TeamCity.
+If the value exceeds 1 second we exit the build step and fail the build by writing to the console.
 
 3d Show the results
 ===================
@@ -203,7 +203,7 @@ Finally, we show the results and output the max VU Load Time. It can of course b
 
 You can use this result to decide on further actions in your execution context as well but that is outside the scope of this sample. And of course we tack on a direct link to the full results and analysis in Load Impact.
 
-Finally, executing the build in TeamCity.
+Finally, executing the build.
 =========================================
 
 Once started it will look something like the above.
