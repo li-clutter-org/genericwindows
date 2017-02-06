@@ -65,12 +65,64 @@ The code has four parts, the initial and then three stages “Kickoff performanc
 
 The initial part of the PowerShell code is where you set the test id and the API key.
 
+```powershell
+<# Load Impact test id #>
+$testId = YOUR_TEST_ID_HERE
+<# API_KEY from your Load Impact account #>
+$API_KEY = "YOUR_API_KEY_HERE" + ":"
+
+$auth = 'Basic ' + [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($API_KEY))
+```
+
 So replace “YOUR\_TEST\_ID\_HERE” with your test id, just the number – not a string.
 
 And replace “YOUR\_API\_KEY\_HERE” with your API key. Keep inside the quotes (it is a string) and remember to keep the ‘**:**’ added at the end. It is basic AUTH, the username is the API key with a blank password and that is why we base 64 encode the authorization for later use.
 
 3b Kick off a performance test
 ==============================
+
+```powershell
+$uri = "https://api.loadimpact.com/v2/test-configs/" + $testId + "/start"
+
+Write-Host "Load Impact performance test"
+Write-Host "Kickoff performance test"
+
+<# try-catch because PS considers all 400+ codes to be errors and will exit if returned #>
+$resp = $null
+try {
+  $resp = Invoke-WebRequest -uri $uri -Method Post -Headers @{'Authorization'=$auth}
+} catch {}
+
+<# Status 201 expected, 200 is just a current running test id #>
+
+if ($resp.StatusCode -ne 201) {
+  Write-Host "Could not start test $testId : $resp.StatusCode `n$resp.Content" 
+  return
+}
+
+$js = ConvertFrom-Json -InputObject $resp.Content
+
+$tid = $js.id
+
+<# Until 5 minutes timout or status is running   #> 
+
+$t = 0
+$uri = "https://api.loadimpact.com/v2/tests/" + $tid + "/"
+do {
+  Start-Sleep -Seconds 10
+  $resp = Invoke-WebRequest -uri $uri -Method Get -Headers @{'Authorization'=$auth}
+  $j = ConvertFrom-Json -InputObject $resp.Content
+  $status_text = $j.status_text
+  $t = $t + 10
+
+  if ($t -gt 300) {
+    Write-Host "Timeout - test start > 5 min" 
+    return
+  }
+} until ($status_text -eq "Running")
+
+Write-Host "Performance test running"
+```
 
 We kick off the performance test by gluing together the URI for the [API to start the test](http://developers.loadimpact.com/api/#post-test-configs-id-start) and then send service messages to TeamCity on the status of the test.
 
@@ -89,6 +141,40 @@ The last thing we do is to send a service message to TeamCity that the test is r
 3c The test is running
 ======================
 
+```powershell
+<# wait until completed #>
+
+$maxVULoadTime = 0.0
+$percentage = 0.0
+$uri = "https://api.loadimpact.com/v2/tests/" + $tid + "/results?ids=__li_progress_percent_total"
+$uril = "https://api.loadimpact.com/v2/tests/" + $tid + "/results?ids=__li_user_load_time"
+do {
+  Start-Sleep -Seconds 30
+
+  <# Get percent completed #>
+  $resp = Invoke-WebRequest -uri $uri -Method Get -Headers @{'Authorization'=$auth}
+  $j = ConvertFrom-Json -InputObject $resp.Content
+
+  <# Since -Last 1 will get TWO on occassion we sort and get the first which will always get 1 #>
+  $percentage = ($j.__li_progress_percent_total | Sort value -Descending | Select-Object -First 1).value
+
+  Write-Host "Percentage completed $percentage"
+
+  <# Get VU Load Time #>
+  $resp = Invoke-WebRequest -uri $uril -Method Get -Headers @{'Authorization'=$auth}
+  $j = ConvertFrom-Json -InputObject $resp.Content
+
+  <# Sort and get the highest value #>
+  $maxVULoadTime = ($j.__li_user_load_time | Sort value -Descending | Select-Object -First 1).value
+
+  if ($maxVULoadTime -gt 1000) {
+    Write-Host " VU Load Time exceeded limit of 1 sec: $maxVULoadTime"
+    return
+  }
+
+} until ([double]$percentage -eq 100.0)
+```
+
 So now your Load Impact performance test is running!
 
 This time we wait until the test has completed, reached the percentage completed value of 100% with a slightly longer sleep between refreshing status calls.
@@ -105,6 +191,13 @@ If the value exceeds 1 second we exit the build step and fail the build by sendi
 
 3d Show the results
 ===================
+
+```powershell
+<# show results #>
+Write-Host "Show results"
+Write-Host "Max VU Load Time: $maxVULoadTime”
+Write-Host "Full results at https://app.loadimpact.com/test-runs/$tid”
+```
 
 Finally, we show the results and output the max VU Load Time. It can of course be any result but as a sample.
 
