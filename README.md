@@ -206,6 +206,26 @@ You can use this result to decide on further actions in your execution context a
 Finally, executing the build.
 =========================================
 
+```
+C:\>powershell -f LoadImpact_API.ps1
+Load Impact performance test
+Kickoff performance test
+Performance test running
+Percentage completed 10.0
+Percentage completed 20.0
+Percentage completed 30.333333333333336
+Percentage completed 40.33333333333333
+Percentage completed 50.33333333333333
+Percentage completed 60.333333333333336
+Percentage completed 70.33333333333334
+Percentage completed 80.33333333333333
+Percentage completed 90.66666666666666
+Percentage completed 100.0
+Show results
+Max VU Load Time: 284.62
+Full results at https://app.loadimpact.com/test-runs/3798633
+```
+
 Once started it will look something like the above.
 
 There’s also a direct link to the full results and analysis in Load Impact where you can always find all the results of all your tests.
